@@ -1,0 +1,6 @@
+override_webform.settings_form:
+  title: Override webform
+  description: Configure Override webform.
+  parent: system.admin_config_system
+  route_name: override_webform.settings_form
+  weight: 10

@@ -1,0 +1,174 @@
+<?php
+
+/**
+ * @file
+ * Primary module hooks for Override webform module.
+ *
+ * @DCG
+ * This file is no longer required in Drupal 8.
+ * @see https://www.drupal.org/node/2217931
+ */
+use Drupal\Core\Form\FormStateInterface;
+use Stephane888\Debug\debugLog;
+use Drupal\Core\Ajax\AjaxResponse;
+use Drupal\Core\Ajax\ReplaceCommand;
+use Drupal\Core\Ajax\OpenModalDialogCommand;
+use Drupal\Core\Ajax\InvokeCommand;
+
+/**
+ * implement hook_form_BASE_FORM_ID_alter
+ *
+ * @param array $form
+ * @param FormStateInterface $form_state
+ * @param string $form_id
+ */
+function override_webform_form_webform_submission_renovation_add_form_alter(array &$form, FormStateInterface $form_state, string $form_id) {
+	// debugLog::$themeName = null;
+	// debugLog::kintDebugDrupal($form, 'override_webform_form_webform_submission_renovation_add_form_alter', null, true);
+	// Ajout d'une classe au formualire;
+	$form["#attributes"]['class'][] = 'container-webform-page-card mx-auto';
+	// On ajouter un template pour contenir les pages, on deplacent les boutons à l'interieur et on les supprime à l'exterieur.
+	$form['elements']['#theme'] = 'override_webform_card';
+	$form['elements']['actions'] = $form['actions'];
+	// on chnage le label de submit:
+	if (! empty($form['elements']['actions']['submit'])) {
+		$form['elements']['actions']['submit']['#value'] = "Me rappeler";
+	}
+	unset($form['actions']);
+	//
+	// $form['#attached']['library'][] = 'lesroisdelareno/form-multi-step';
+	// $form['elements']['dans_quelle_ville_se_situe_votre_projet_']['#prefix'] = '<div id="edit-output" class="p-3 bg-info d-none"></div> <div id="edit-output-departement">';
+	// $form['elements']['dans_quelle_ville_se_situe_votre_projet_']['#suffix'] = '</div>';
+	// // dump($form);
+	// $form['elements']['dans_quel_departement_se_situe_votre_projet_']['#ajax'] = [
+	// 'callback' => '_override_webform_webform_callback', // don't forget :: when calling a class method.
+	// // 'callback' => [$this, 'myAjaxCallback'], //alternative notation
+	// 'disable-refocus' => TRUE, // Or TRUE to prevent re-focusing on the triggering element.
+	// 'event' => 'change',
+	// 'wrapper' => 'edit-output-departement', // This element is updated with this AJAX callback.
+	// 'progress' => [
+	// 'type' => 'throbber',
+	// 'message' => 'Chargement des données encours ...'
+	// ]
+	// ];
+	// ******
+	// on ajoute le resumé des choix et le montant.
+	$values = $form_state->getValues();
+	if (! empty($values['piece'])) {
+		$form['elements']['information_complementaire']['about-prestation'] = [
+			'#type' => 'html_tag',
+			'#tag' => 'div',
+			'#attributes' => [
+				'class' => [
+					'container-form-resume'
+				]
+			],
+			'#weight' => - 100
+		];
+		$form['elements']['information_complementaire']['about-prestation']['summary'] = [];
+		_override_webform_resumer_commande($form['elements']['information_complementaire']['about-prestation']['summary']);
+		//
+		$form['elements']['information_complementaire']['about-prestation'][''] = [];
+		$generatesummay = \Drupal::service('webform_composite_test.generatesummay');
+		$generatesummay->submission = $values['piece'];
+		$generatesummay->getTemplatesPrices($form['elements']['pieces_a_renover']['piece'], $form['elements']['information_complementaire']['about-prestation']['summary']);
+	}
+}
+
+/**
+ * le resumer de la prestation demandé.
+ */
+function _override_webform_resumer_commande(array &$build) {
+	$build = [
+		'#type' => 'html_tag',
+		'#tag' => 'div',
+		'#weight' => - 100,
+		// '#value' => "Resumer de la prestation demandé",
+		'titre' => [
+			'#type' => 'html_tag',
+			'#tag' => 'p',
+			'#attributes' => [
+				'class' => [
+					'titre-page-form'
+				]
+			],
+			'#value' => "Resumer de la prestation demandée"
+		]
+	];
+}
+
+function override_webform_preprocess_webform_progress_tracker(array &$variables) {
+	if (isset($variables['progress'][3]['title'])) {
+		$variables['progress'][3]['title'] = 'Terminée';
+	}
+}
+
+function _override_webform_webform_callback(array &$form, FormStateInterface $form_state) {
+	// On essaie de recuperer la valeur du text selectionner par l'utilisateur.
+	$selectedText = 'Oups !!!, nothing selected';
+	if ($selectedValue = $form_state->getValue('dans_quel_departement_se_situe_votre_projet_')) {
+		// Get the text of the selected option.
+		$selectedText = $form['elements']['dans_quel_departement_se_situe_votre_projet_']['#options'][$selectedValue];
+	}
+
+	// Create a new textfield element containing the selected text.
+	// We're replacing the original textfield using an AJAX replace command which
+	// expects HTML markup. So we need to render the textfield render array here.
+	$elem = [
+		'#type' => 'textfield',
+		'#size' => '60',
+		'#disabled' => TRUE,
+		'#value' => "I am a new textfield: $selectedText!",
+		'#attributes' => [
+			'id' => [
+				'edit-output'
+			]
+		]
+	];
+	$renderer = \Drupal::service('renderer');
+	$renderedField = $renderer->render($elem);
+	$dialogText = [];
+	// Attach the javascript library for the dialog box command
+	// in the same way you would attach your custom JS scripts.
+	$dialogText['#attached']['library'][] = 'core/drupal.dialog.ajax';
+	// Prepare the text for our dialogbox.
+	$dialogText['#markup'] = "You selected: $selectedText";
+
+	// If we want to execute AJAX commands our callback needs to return
+	// an AjaxResponse object. let's create it and add our commands.
+	$response = new AjaxResponse();
+	// Issue a command that replaces the element #edit-output
+	// with the rendered markup of the field created above.
+	$response->addCommand(new ReplaceCommand('#edit-output', $renderedField));
+	// Show the dialog box.
+	$response->addCommand(new OpenModalDialogCommand('My title', $dialogText, [
+		'width' => '300'
+	]));
+	$response->addCommand(new InvokeCommand(NULL, 'myAjaxCallback', [
+		'This is the new text! $selectedText',
+		$selectedText
+	]));
+
+	// Finally return the AjaxResponse object.
+	return $response;
+}
+
+function override_webform_theme($existing, $type, $theme, $path) {
+	return [
+		'override_webform_card' => [
+			'render element' => 'element'
+		]
+	];
+}
+
+/**
+ * Implement hook_theme_suggestions_HOOK_alter()
+ */
+function override_webform_theme_suggestions_fieldset_alter(array &$suggestions, array &$variables, $hook) {
+	// fieldset-radio
+	if (! empty($variables["element"]["#type"])) {
+		$suggestions[] = 'fieldset__' . $variables["element"]["#type"];
+	}
+}
+
+

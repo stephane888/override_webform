@@ -1,0 +1,30 @@
+override_webform.example:
+  path: '/override-webform/example'
+  defaults:
+    _title: 'Example'
+    _controller: '\Drupal\override_webform\Controller\OverrideWebformController::build'
+  requirements:
+    _permission: 'access content'
+
+override_webform.settings_form:
+  path: '/admin/config/system/override-webform'
+  defaults:
+    _title: 'Override webform settings'
+    _form: 'Drupal\override_webform\Form\SettingsForm'
+  requirements:
+    _permission: 'administer override_webform configuration'
+
+override_webform.results:
+  path: '/override-webform/{webform}/results/{submission_view}'
+  defaults:
+    _title: 'Traitement de devis'
+    _controller: '\Drupal\override_webform\Controller\DiplayWebdormController::build'
+    _entity_list: 'webform_submission'
+    submission_view: ''
+  options:
+    parameters:
+      webform:
+        type: 'entity:webform'
+  requirements:
+    _entity_access: 'webform.submission_view_any'
+    _custom_access: '\Drupal\webform\Access\WebformEntityAccess:checkResultsAccess'

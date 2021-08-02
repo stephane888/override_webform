@@ -1,0 +1,4 @@
+administer override_webform configuration:
+  title: 'Administer override_webform configuration'
+  description: 'Optional description.'
+  restrict access: true
