@@ -1,0 +1,14 @@
+{
+    "name": "stephane888/override_webform",
+    "description": "override webform",
+    "type": "drupal-module-custom",
+    "license": "MIt",
+    "authors": [
+        {
+            "name": "stephane888",
+            "email": "kksasteph888@gmail.com"
+        }
+    ],
+    "minimum-stability": "dev",
+    "require": {}
+}
